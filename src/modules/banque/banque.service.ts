@@ -258,9 +258,12 @@ private async getPool(): Promise<sql.ConnectionPool> {
 async getBanquesTreso(): Promise<any[]> {
   try {
     const pool = await this.getPool();
-    const result = await pool.request().query('SELECT * FROM GS_PARTY_BASE');
-    console.log('GS_PARTY_BASE count:', result.recordset.length);
-    console.log('GS_PARTY_BASE first row:', JSON.stringify(result.recordset[0]));
+    // const result = await pool.request().query('SELECT * FROM GS_PARTY_BASE');
+    const result = await pool.request().query(
+  'SELECT * FROM GS_PARTY_BASE WHERE PARTYTYPE = 1'
+);
+    // console.log('GS_PARTY_BASE count:', result.recordset.length);
+    // console.log('GS_PARTY_BASE first row:', JSON.stringify(result.recordset[0]));
     await pool.close();
     return result.recordset;
   } catch (error) {
@@ -269,40 +272,110 @@ async getBanquesTreso(): Promise<any[]> {
   }
 }
 
+  // async getCorrespondances(): Promise<any[]> {
+  //   try {
+  //     const pool = await this.getPool();
+  //     await pool.request().query(`
+  //       IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BANQUE_CORRESPONDANCE' AND xtype='U')
+  //       CREATE TABLE BANQUE_CORRESPONDANCE (
+  //         id INT IDENTITY(1,1) PRIMARY KEY,
+  //         banqueX3 NVARCHAR(50) NOT NULL,
+  //         banqueTreso NVARCHAR(50) NOT NULL,
+  //         dateCreation DATETIME DEFAULT GETDATE()
+  //       )
+  //     `);
+  //     const result = await pool.request().query('SELECT * FROM BANQUE_CORRESPONDANCE');
+  //     await pool.close();
+  //     return result.recordset;
+  //   } catch (error) {
+  //     console.error('getCorrespondances error:', error?.message);
+  //     return [];
+  //   }
+  // }
+
+  // async saveCorrespondances(
+  //   correspondances: { banqueX3: string; banqueTreso: string }[]
+  // ): Promise<{ success: boolean }> {
+  //   const pool = await this.getPool();
+  //   await pool.request().query(`DELETE FROM BANQUE_CORRESPONDANCE`);
+  //   for (const c of correspondances) {
+  //     await pool.request()
+  //       .input('banqueX3', sql.NVarChar, c.banqueX3)
+  //       .input('banqueTreso', sql.NVarChar, c.banqueTreso)
+  //       .query(`INSERT INTO BANQUE_CORRESPONDANCE (banqueX3, banqueTreso)
+  //               VALUES (@banqueX3, @banqueTreso)`);
+  //   }
+  //   await pool.close();
+  //   return { success: true };
+  // }
+
   async getCorrespondances(): Promise<any[]> {
-    try {
-      const pool = await this.getPool();
-      await pool.request().query(`
-        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BANQUE_CORRESPONDANCE' AND xtype='U')
-        CREATE TABLE BANQUE_CORRESPONDANCE (
-          id INT IDENTITY(1,1) PRIMARY KEY,
-          banqueX3 NVARCHAR(50) NOT NULL,
-          banqueTreso NVARCHAR(50) NOT NULL,
-          dateCreation DATETIME DEFAULT GETDATE()
-        )
-      `);
-      const result = await pool.request().query('SELECT * FROM BANQUE_CORRESPONDANCE');
-      await pool.close();
-      return result.recordset;
-    } catch (error) {
-      console.error('getCorrespondances error:', error?.message);
-      return [];
-    }
+  try {
+    const pool = await this.getPool();
+
+    await pool.request().query(`
+      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BANQUE_CORRESPONDANCE' AND xtype='U')
+      CREATE TABLE BANQUE_CORRESPONDANCE (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        banqueX3 NVARCHAR(50) NOT NULL,
+        banqueTreso NVARCHAR(50) NOT NULL,
+        dateCreation DATETIME DEFAULT GETDATE()
+      )
+    `);
+
+    // Join to get actual names
+    const result = await pool.request().query(`
+      SELECT 
+        bc.id,
+        bc.banqueX3,
+        bc.banqueTreso,
+        bc.dateCreation,
+        b.PAB as banqueX3Nom,
+        p.DESCRIPTION as banqueTresoNom
+      FROM BANQUE_CORRESPONDANCE bc
+      LEFT JOIN BANKS b ON b.BAN = bc.banqueX3
+      LEFT JOIN GS_PARTY_BASE p ON p.CODE = bc.banqueTreso AND p.PARTYTYPE = 1
+    `);
+
+    await pool.close();
+    return result.recordset;
+  } catch (error) {
+    console.error('getCorrespondances error:', (error as any)?.message);
+    return [];
   }
+}
 
   async saveCorrespondances(
-    correspondances: { banqueX3: string; banqueTreso: string }[]
-  ): Promise<{ success: boolean }> {
-    const pool = await this.getPool();
-    await pool.request().query(`DELETE FROM BANQUE_CORRESPONDANCE`);
-    for (const c of correspondances) {
-      await pool.request()
-        .input('banqueX3', sql.NVarChar, c.banqueX3)
-        .input('banqueTreso', sql.NVarChar, c.banqueTreso)
-        .query(`INSERT INTO BANQUE_CORRESPONDANCE (banqueX3, banqueTreso)
-                VALUES (@banqueX3, @banqueTreso)`);
-    }
-    await pool.close();
-    return { success: true };
+  correspondances: { banqueX3: string; banqueTreso: string }[]
+): Promise<{ success: boolean }> {
+  const pool = await this.getPool();
+
+  // Create table if not exists
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BANQUE_CORRESPONDANCE' AND xtype='U')
+    CREATE TABLE BANQUE_CORRESPONDANCE (
+      id INT IDENTITY(1,1) PRIMARY KEY,
+      banqueX3 NVARCHAR(50) NOT NULL,
+      banqueTreso NVARCHAR(50) NOT NULL,
+      dateCreation DATETIME DEFAULT GETDATE()
+    )
+  `);
+
+   Delete only what we're replacing, then insert
+  await pool.request().query(`DELETE FROM BANQUE_CORRESPONDANCE`);
+
+  for (const c of correspondances) {
+    await pool.request()
+      .input('banqueX3', sql.NVarChar, c.banqueX3)
+      .input('banqueTreso', sql.NVarChar, c.banqueTreso)
+      .query(`
+        INSERT INTO BANQUE_CORRESPONDANCE (banqueX3, banqueTreso)
+        VALUES (@banqueX3, @banqueTreso)
+      `);
   }
+
+  await pool.close();
+  return { success: true };
+}
+
 }
