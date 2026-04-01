@@ -18,4 +18,38 @@ export class BanqueController {
   saveCorrespondances(@Body() body: { correspondances: { banqueX3: string; banqueTreso: string }[] }) {
     return this.banqueService.saveCorrespondances(body.correspondances);
   }
+
+@Get('test-db')
+async testDb() {
+  const sql = require('mssql');
+  const configs = [
+    { server: 'localhost', port: 49993 },
+    { server: '127.0.0.1', port: 49993 },
+    { server: 'WIN-DMB0UV4AHJ1', port: 49993 },
+  ];
+
+  const results: any[] = [];  // 👈 only change: add any[]
+
+  for (const cfg of configs) {
+    try {
+      const pool = await sql.connect({
+        ...cfg,
+        user: 'sa',
+        password: 'Azerty123#',
+        database: 'SXA',
+        options: { trustServerCertificate: true, encrypt: false },
+      });
+      const r = await pool.request().query('SELECT 1 as test');
+      await pool.close();
+      results.push({ config: cfg, status: 'SUCCESS', result: r.recordset });
+    } catch (e: any) {
+      results.push({ config: cfg, status: 'FAILED', error: e.message });
+    }
+  }
+  return results;
+}
+
+
+
+  
 }

@@ -137,57 +137,137 @@ private async parseX3Response(data: any): Promise<any[]> {
 }
 
 
-
-
   async getBanquesX3(): Promise<any[]> {
-    try {
-      const response = await firstValueFrom(
-        this.httpService.post(
-          this.configService.x3SoapUrl,
-          this.getSoapBody('YABN'),
-          {
-            headers: {
-              'Content-Type': 'text/xml;charset=UTF-8',
-              'SOAPAction': 'query',
-              'Authorization': `Basic ${this.getAuth()}`,
-            },
+  try {
+    const response = await firstValueFrom(
+      this.httpService.post(
+        this.configService.x3SoapUrl,
+        this.getSoapBody('YABN'),
+        {
+          headers: {
+            'Content-Type': 'text/xml;charset=UTF-8',
+            'SOAPAction': 'query',
+            'Authorization': `Basic ${this.getAuth()}`,
           },
-        ),
-      );
-      return await this.parseX3Response(response.data);
-    } catch (error) {
-      console.error('getBanquesX3 error:', error?.response?.data ?? error?.message);
-      return [];
-    }
+          responseType: 'text', // 👈 key fix — don't let axios try to parse as JSON
+        },
+      ),
+    );
+    return await this.parseX3Response(response.data);
+  } catch (error) {
+    console.error('getBanquesX3 error:', error?.response?.data ?? error?.message);
+    return [];
   }
+}
 
-  private async getPool(): Promise<sql.ConnectionPool> {
-    const dbServer = this.configService.dbServer;
-    const parts = dbServer.split('\\');
-    return sql.connect({
-      server: parts[0],
-      user: this.configService.dbUser,
-      password: this.configService.dbPassword,
-      database: this.configService.dbName,
-      options: {
-        trustServerCertificate: true,
-        instanceName: parts[1] ?? undefined,
-      },
-    });
-  }
+  // private async getPool(): Promise<sql.ConnectionPool> {
+  //   const dbServer = this.configService.dbServer;
+  //   const parts = dbServer.split('\\');
+  //   return sql.connect({
+  //     server: parts[0],
+  //     user: this.configService.dbUser,
+  //     password: this.configService.dbPassword,
+  //     database: this.configService.dbName,
+  //     options: {
+  //       trustServerCertificate: true,
+  //       instanceName: parts[1] ?? undefined,
+  //     },
+  //   });
+  // }
 
-  async getBanquesTreso(): Promise<any[]> {
-    try {
-      const pool = await this.getPool();
-      const result = await pool.request().query('SELECT * FROM GSPARTYBASE');
-      console.log('GSPARTYBASE columns:', Object.keys(result.recordset[0] ?? {}));
-      await pool.close();
-      return result.recordset;
-    } catch (error) {
-      console.error('getBanquesTreso error:', error?.message);
-      return [];
-    }
+// private async getPool(): Promise<sql.ConnectionPool> {
+//   return sql.connect({
+//     server: this.configService.dbServer,
+//     port: this.configService.dbPort,
+//     user: this.configService.dbUser,
+//     password: this.configService.dbPassword,
+//     database: this.configService.dbName,
+//     options: {
+//       trustServerCertificate: true,
+//       encrypt: false,
+//     },
+//   });
+// }
+
+private async getPool(): Promise<sql.ConnectionPool> {
+  return sql.connect({
+    server: 'localhost',
+    port: 49993,
+    user: 'sa',
+    password: 'Azerty123#',
+    database: 'SXA',
+    options: {
+      trustServerCertificate: true,
+      encrypt: false,
+    },
+  });
+}
+
+
+  // async getBanquesTreso(): Promise<any[]> {
+  //   try {
+  //     const pool = await this.getPool();
+  //     const result = await pool.request().query('SELECT * FROM GSPARTYBASE');
+  //     console.log('GSPARTYBASE columns:', Object.keys(result.recordset[0] ?? {}));
+  //     await pool.close();
+  //     return result.recordset;
+  //   } catch (error) {
+  //     console.error('getBanquesTreso error:', error?.message);
+  //     return [];
+  //   }
+  // }
+
+
+//   async getBanquesTreso(): Promise<any[]> {
+//   try {
+//     const pool = await this.getPool();
+//     console.log('SQL connected successfully');
+
+//     // First check if table exists
+//     const tableCheck = await pool.request().query(`
+//       SELECT COUNT(*) as cnt 
+//       FROM INFORMATION_SCHEMA.TABLES 
+//       WHERE TABLE_NAME = 'GSPARTYBASE'
+//     `);
+//     console.log('Table GSPARTYBASE exists check:', tableCheck.recordset[0]);
+
+//     // List all tables in SXA
+//     const tables = await pool.request().query(`
+//       SELECT TOP 20 TABLE_NAME 
+//       FROM INFORMATION_SCHEMA.TABLES 
+//       WHERE TABLE_TYPE = 'BASE TABLE'
+//       ORDER BY TABLE_NAME
+//     `);
+//     console.log('Tables in SXA:', tables.recordset.map((t: any) => t.TABLE_NAME));
+
+//     // Try the actual query
+//     const result = await pool.request().query('SELECT TOP 5 * FROM GSPARTYBASE');
+//     console.log('GSPARTYBASE row count:', result.recordset.length);
+//     console.log('GSPARTYBASE first row:', JSON.stringify(result.recordset[0]));
+
+//     await pool.close();
+//     return result.recordset;
+//   } catch (error) {
+//     console.error('getBanquesTreso FULL error:', error?.message);
+//     console.error('getBanquesTreso error code:', (error as any)?.code);
+//     console.error('getBanquesTreso error number:', (error as any)?.number);
+//     return [];
+//   }
+// }
+
+async getBanquesTreso(): Promise<any[]> {
+  try {
+    const pool = await this.getPool();
+    const result = await pool.request().query('SELECT * FROM GS_PARTY_BASE');
+    console.log('GS_PARTY_BASE count:', result.recordset.length);
+    console.log('GS_PARTY_BASE first row:', JSON.stringify(result.recordset[0]));
+    await pool.close();
+    return result.recordset;
+  } catch (error) {
+    console.error('getBanquesTreso error:', (error as any)?.message);
+    return [];
   }
+}
 
   async getCorrespondances(): Promise<any[]> {
     try {

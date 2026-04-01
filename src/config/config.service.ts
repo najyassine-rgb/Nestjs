@@ -22,4 +22,6 @@ export class ConfigService {
   get dbUser(): string { return this.get('DB_USER'); }
   get dbPassword(): string { return this.get('DB_PASSWORD'); }
   get dbName(): string { return this.get('DB_NAME'); }
+  get dbInstance(): string { return this.get('DB_INSTANCE'); }
+  get dbPort(): number { return parseInt(this.get('DB_PORT')); }
 }
