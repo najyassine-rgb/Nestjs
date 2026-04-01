@@ -1,0 +1,4 @@
+export const APP_CONSTANTS = {
+  JWT_EXPIRES_IN: '1h',
+  BCRYPT_SALT_ROUNDS: 10,
+};
