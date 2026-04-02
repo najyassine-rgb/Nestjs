@@ -309,7 +309,44 @@ async getBanquesTreso(): Promise<any[]> {
   //   return { success: true };
   // }
 
-  async getCorrespondances(): Promise<any[]> {
+//   async getCorrespondances(): Promise<any[]> {
+//   try {
+//     const pool = await this.getPool();
+
+//     await pool.request().query(`
+//       IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BANQUE_CORRESPONDANCE' AND xtype='U')
+//       CREATE TABLE BANQUE_CORRESPONDANCE (
+//         id INT IDENTITY(1,1) PRIMARY KEY,
+//         banqueX3 NVARCHAR(50) NOT NULL,
+//         banqueTreso NVARCHAR(50) NOT NULL,
+//         dateCreation DATETIME DEFAULT GETDATE()
+//       )
+//     `);
+
+//     // Join to get actual names
+//     const result = await pool.request().query(`
+//       SELECT 
+//         bc.id,
+//         bc.banqueX3,
+//         bc.banqueTreso,
+//         bc.dateCreation,
+//         b.PAB as banqueX3Nom,
+//         p.DESCRIPTION as banqueTresoNom
+//       FROM BANQUE_CORRESPONDANCE bc
+//       LEFT JOIN BANKS b ON b.BAN = bc.banqueX3
+//       LEFT JOIN GS_PARTY_BASE p ON p.CODE = bc.banqueTreso AND p.PARTYTYPE = 1
+//     `);
+
+//     await pool.close();
+//     return result.recordset;
+//   } catch (error) {
+//     console.error('getCorrespondances error:', (error as any)?.message);
+//     return [];
+//   }
+// }
+
+
+async getCorrespondances(): Promise<any[]> {
   try {
     const pool = await this.getPool();
 
@@ -323,17 +360,16 @@ async getBanquesTreso(): Promise<any[]> {
       )
     `);
 
-    // Join to get actual names
     const result = await pool.request().query(`
       SELECT 
         bc.id,
         bc.banqueX3,
         bc.banqueTreso,
         bc.dateCreation,
-        b.PAB as banqueX3Nom,
-        p.DESCRIPTION as banqueTresoNom
+        b.PAB        AS banqueX3Nom,
+        p.DESCRIPTION AS banqueTresoNom
       FROM BANQUE_CORRESPONDANCE bc
-      LEFT JOIN BANKS b ON b.BAN = bc.banqueX3
+      LEFT JOIN BANKS b        ON b.BAN  = bc.banqueX3
       LEFT JOIN GS_PARTY_BASE p ON p.CODE = bc.banqueTreso AND p.PARTYTYPE = 1
     `);
 
@@ -361,7 +397,7 @@ async getBanquesTreso(): Promise<any[]> {
     )
   `);
 
-   Delete only what we're replacing, then insert
+  // Delete only what we're replacing, then insert
   await pool.request().query(`DELETE FROM BANQUE_CORRESPONDANCE`);
 
   for (const c of correspondances) {
